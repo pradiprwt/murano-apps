@@ -49,6 +49,10 @@ Properties:
   dockerRegistry:
     Contract: $.string()
 
+  autoScaling:
+    Contract: $.bool().notNull()
+    Default: false
+
   serviceEndpoints:
     Contract:
       - port: $.int().notNull().check($ > 0)
@@ -123,6 +127,9 @@ Methods:
           - $.gatewayNodes.take($.gatewayCount).select($.setupEtcd())
 
           - $.masterNode.setupNode()
+          - If: $.autoScaling != false
+            Then:
+               - $.masterNode.setupAutoscale()
           - Parallel:
               - $.minionNodes.take($.nodeCount).pselect($.setupNode())
               - $.minionNodes.skip($.nodeCount).pselect($.removeFromCluster())

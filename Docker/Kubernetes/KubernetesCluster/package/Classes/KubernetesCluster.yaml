@@ -469,7 +469,6 @@ Methods:
         Else:
           - $._environment.reporter.report($this, 'The maximum number of nodes has been reached')
 
-
   scaleNodesDown:
     Usage: Action
     Body:
@@ -505,6 +504,19 @@ Methods:
       - Return: new(std:File, base64Content => $result.content,
                     filename => 'application.tar.gz')
 
+  addPublicNode:
+    Usage: Action
+    Body:
+      - $._environment.reporter.report($this, 'Scaling Kubernetes cluster using public cloud')
+      - $.masterNode.addPublicNode()
+      - $._environment.reporter.report($this, 'Public node added to Kubernetes cluster')
+
+  deletePublicNode:
+    Usage: Action
+    Body:
+      - $._environment.reporter.report($this, 'Deleting public node from cluster')
+      - $.masterNode.deletePublicNode()
+      - $._environment.reporter.report($this, 'Public node deleted from Kubernetes cluster')
 
   scaleRc:
     Arguments:

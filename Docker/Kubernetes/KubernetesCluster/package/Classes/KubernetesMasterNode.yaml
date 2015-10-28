@@ -119,6 +119,24 @@ Methods:
           - $ip: coalesce($.instance.floatingIpAddress, $.getIp())
           - $._environment.reporter.report($this, $msg.format($ip))
 
+  addPublicNode:
+    Body:
+      - $resources: new(sys:Resources)
+      - $template: $resources.yaml('AddPublicNode.template').bind(dict(
+                gcpMinionNodes => $.gcpMinionNodes,
+                gcpNodes => $.gcpNodes
+              ))
+      - $.instance.agent.call($template, $resources)
+
+  deletePublicNode:
+    Body:
+      - $resources: new(sys:Resources)
+      - $template: $resources.yaml('DeletePublicNode.template').bind(dict(
+                gcpMinionNodes => $.gcpMinionNodes,
+                gcpNodes => $.gcpNodes
+              ))      
+      - $.instance.agent.call($template, $resources)
+
   isAvailable:
     Body:
       Return: $.instance.isDeployed()

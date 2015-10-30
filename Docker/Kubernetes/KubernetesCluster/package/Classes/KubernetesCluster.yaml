@@ -504,19 +504,19 @@ Methods:
       - Return: new(std:File, base64Content => $result.content,
                     filename => 'application.tar.gz')
 
-  addPublicNode:
+  addGceNode:
     Usage: Action
     Body:
-      - $._environment.reporter.report($this, 'Scaling Kubernetes cluster using public cloud')
-      - $.masterNode.addPublicNode()
-      - $._environment.reporter.report($this, 'Public node added to Kubernetes cluster')
+      - $._environment.reporter.report($this, 'Scaling Kubernetes cluster using GCE public cloud')
+      - $.masterNode.addGceNode()
+      - $._environment.reporter.report($this, 'GCE Public node added to Kubernetes cluster')
 
-  deletePublicNode:
+  deleteGceNode:
     Usage: Action
     Body:
-      - $._environment.reporter.report($this, 'Deleting public node from cluster')
-      - $.masterNode.deletePublicNode()
-      - $._environment.reporter.report($this, 'Public node deleted from Kubernetes cluster')
+      - $._environment.reporter.report($this, 'Deleting GCE public node from cluster')
+      - $.masterNode.deleteGceNode()
+      - $._environment.reporter.report($this, 'GCE Public node deleted from Kubernetes cluster')
 
   scaleRc:
     Arguments:

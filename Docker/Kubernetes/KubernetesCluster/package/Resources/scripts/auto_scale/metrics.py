@@ -20,8 +20,10 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 total_num_vms = 0
+total_num_gcevms = 0
+min_gcevms_limit = 0
 
-# Parsing CPU threshold parameteres
+# Parsing input parameters from autoscale.conf
 configParser = configparser.ConfigParser()
 configParser.read(data_file)
 MASTER = configParser.get('DEFAULT', 'MASTER')
@@ -29,8 +31,9 @@ max_vms_limit = int(configParser.get('DEFAULT', 'max_vms_limit'))
 min_vms_limit = int(configParser.get('DEFAULT', 'min_vms_limit'))
 MAX_CPU_LIMIT = int(configParser.get('DEFAULT', 'MAX_CPU_LIMIT'))
 MIN_CPU_LIMIT = int(configParser.get('DEFAULT', 'MIN_CPU_LIMIT'))
+max_gcevms_limit = int(configParser.get('GCE','gcp_minion_nodes'))
 
-# Checking the Cluster is ready or not
+# Checking cluster is configured or not
 count = 0
 condition = True
 while condition:
@@ -65,9 +68,8 @@ def sizeof_fmt(num, suffix='B'):
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
 print_limits()
-
 while 1:
-    # Finding number of minions and their status
+    # Retrieving number of nodes in k8s cluster
     api = "http://"+MASTER+":8080/api/v1/nodes"
     request = urllib.request.Request(api)
     response = urllib.request.urlopen(request)
@@ -79,6 +81,7 @@ while 1:
         total_num_vms = number_minions
     except Exception as e:
         continue
+    # Checking minon is ready or not
     minion = 0
     while minion < number_minions:
         node_ip = nodes_info["items"][minion]["metadata"]["name"]
@@ -93,7 +96,7 @@ while 1:
         print("monitoring minion: ", node_ip)
         minion += 1
 
-        # Retrieving RAM usage
+        # Retrieving number of cores in a node
         api = "http://"+node_ip+":4194/api/v1.3/machine"
         request = urllib.request.Request(api)
         response = urllib.request.urlopen(request)
@@ -101,10 +104,8 @@ while 1:
         string = str(decode_response)
         machine_info = json.loads(string)
         num_cores = machine_info["num_cores"]
-        ram_capacity = machine_info["memory_capacity"]
-        ram_capacity = int(ram_capacity)
 
-        # Retrieving and calculating CPU usage
+        # Calculating CPU usage
         api = "http://"+node_ip+":4194/api/v1.3/containers/"
         request = urllib.request.Request(api)
         response = urllib.request.urlopen(request)
@@ -140,19 +141,22 @@ while 1:
                 os.system(scale_script + ' up')
                 total_num_vms += 1
             else:
-                print(".....The maximum number of nodes has been reached.....")
+                print("..The maximum number of nodes has been reached on private cloud ..")
+                if total_num_gcevms < max_gcevms_limit:
+                    print(".......Scaling up to GCE......")
+                    os.system(os.system(scale_script + ' up gce'))
+                    total_num_gcevms += 1
+                else:
+                    print("...The maximum number of nodes has been reached on GCE...")
         if cpu_usage < MIN_CPU_LIMIT:
-            if total_num_vms > min_vms_limit:
-                print (" ................. Scaling Down ....................")
+            if total_num_gcevms > min_gcevms_limit:
+                print("...Scaling Down on GCE...")
+                os.system(os.system(scale_script + ' down gce'))
+                total_num_gcevms -= 1
+            elif total_num_vms > min_vms_limit:
+                print (" ................. Scaling Down on private ....................")
                 os.system(scale_script + ' down')
                 total_num_vms -= 1
-
-        # Calculating RAM usage
-        ram_usage = cur_status["memory"]["usage"]
-        ram_usage = int(ram_usage)
-        ram_usage = ram_usage/ram_capacity * 100
-        ram_usage = '%.f' % round(ram_usage, 1)
-        print ("Ram usage :" + ram_usage + "%")
-
         print ("\n")
         time.sleep(3)
+

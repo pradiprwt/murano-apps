@@ -42,6 +42,13 @@ Scripts:
       - auto_scale/metrics.py
       - auto_scale/scale.sh
       - auto_scale/autoscale
+      - auto_scale/addGceNode.sh
+      - auto_scale/deleteGceNode.sh
+      - auto_scale/gceIpManager.sh
+      - auto_scale/initd_scripts/etcd
+      - auto_scale/initd_scripts/flanneld
+      - auto_scale/initd_scripts/kubelet
+      - auto_scale/initd_scripts/kube-proxy
 
     Options:
       captureStdout: true

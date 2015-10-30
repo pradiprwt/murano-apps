@@ -12,20 +12,20 @@
 
 FormatVersion: 2.0.0
 Version: 1.0.0
-Name: Add Public Node
+Name: Add GCE Public Node
 
 Parameters:
   gcpMinionNodes: $gcpMinionNodes
   gcpNodes: $gcpNodes
 
 Body: |
-  return setup('{0} {1}'.format(args.gcpMinionNodes, args.gcpNodes)).stdout
+  return setup().stdout
 
 Scripts:
   setup:
     Type: Application
     Version: 1.0.0
-    EntryPoint: addPublicNode.sh
+    EntryPoint: addGceNode.sh
     Options:
       captureStdout: true
       captureStderr: true

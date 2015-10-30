@@ -25,22 +25,28 @@ conf_file=auto_scale/autoscale.conf
 mkdir -p /etc/autoscale
 mkdir -p /opt/bin/autoscale
 
-sed -i "/^max_vms_limit/ c max_vms_limit=${1}" $conf_file 
-sed -i "/^min_vms_limit/ c min_vms_limit=${2}" $conf_file
-sed -i "/^MAX_CPU_LIMIT/ c MAX_CPU_LIMIT=${3}" $conf_file
-sed -i "/^MIN_CPU_LIMIT/ c MIN_CPU_LIMIT=${4}" $conf_file
-sed -i "/^MASTER/ c MASTER=${5}" $conf_file
-sed -i "/^env_name/ c env_name=${6}" $conf_file
-sed -i "/^OPENSTACK_IP/ c OPENSTACK_IP=${7}" $conf_file
-sed -i "/^tenant/ c tenant=${8}" $conf_file
-sed -i "/^username/ c username=${9}" $conf_file
-sed -i "/^password/ c password=${10}" $conf_file    
+sed -i "/^\[DEFAULT]/ a\max_vms_limit=${1}" $conf_file
+sed -i "/^\[DEFAULT]/ a\min_vms_limit=${2}" $conf_file
+sed -i "/^\[DEFAULT]/ a\MAX_CPU_LIMIT=${3}" $conf_file
+sed -i "/^\[DEFAULT]/ a\MIN_CPU_LIMIT=${4}" $conf_file
+sed -i "/^\[DEFAULT]/ a\MASTER=${5}" $conf_file
+sed -i "/^\[DEFAULT]/ a\env_name=${6}" $conf_file
+sed -i "/^\[DEFAULT]/ a\password=${10}" $conf_file
+sed -i "/^\[DEFAULT]/ a\tenant=${8}" $conf_file
+sed -i "/^\[DEFAULT]/ a\username=${9}" $conf_file
+sed -i "/^\[DEFAULT]/ a\OPENSTACK_IP=${7}" $conf_file
    if [[ ${11} == "True" ]];
    then
-     echo -e "\n" >> $conf_file
-     echo -e "[gcp]" >> $conf_file
-     echo -e "gcp_minion_nodes=${12}" >> $conf_file
-     echo -e "gcp_ip=${13}" >> $conf_file
+      sed -i "/^\[GCE]/ a\gcp_ip=${13}" $conf_file
+      sed -i "/^\[GCE]/ a\gcp_minion_nodes=${12}" $conf_file
+      mkdir -p /opt/bin/autoscale/initd_scripts
+      cp auto_scale/addGceNode.sh /opt/bin/autoscale/
+      cp auto_scale/deleteGceNode.sh /opt/bin/autoscale/
+      cp auto_scale/gceIpManager.sh /opt/bin/autoscale/
+      cp auto_scale/initd_scripts/etcd /opt/bin/autoscale/initd_scripts
+      cp auto_scale/initd_scripts/flanneld /opt/bin/autoscale/initd_scripts
+      cp auto_scale/initd_scripts/kubelet /opt/bin/autoscale/initd_scripts
+      cp auto_scale/initd_scripts/kube-proxy /opt/bin/autoscale/initd_scripts
    fi
 cp auto_scale/autoscale.conf /etc/autoscale/
 chmod +x auto_scale/*

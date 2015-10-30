@@ -247,7 +247,7 @@ Forms:
           description: >-
             Number of minions from GCP for scale.
         - name: gcpNodes
-          type: text
+          type: string
           required: false
           label: Nodes
           description: >-

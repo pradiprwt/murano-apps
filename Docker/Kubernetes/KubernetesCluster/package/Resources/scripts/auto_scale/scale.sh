@@ -8,9 +8,9 @@ then
     if [  -z $gcp ]
     then
        echo "Scaling $action .."
-    elif [ $gcp == "gcp" ]
+    elif [ $gcp == "gce" ]
     then
-       echo "Scaling $action gcp.."
+       echo "Scaling $action gce.."
     else
        echo "Unknow parameter: $gcp"
        exit 0
@@ -63,13 +63,13 @@ scaleGceDown=`echo $services | grep -o '[a-z0-9-]*_deleteGceNode'`
 
 
 # gcp up
-if [ $gcp == "gcp" ] && [ $action == "up" ]; then
+if [ $gcp == "gce" ] && [ $action == "up" ]; then
     echo "Action ID: $scaleGceUp"
     task=$(curl -s -H "X-Auth-Token: $token" -H "Content-Type: application/json" -d "{}" http://$OPENSTACK_IP:8082/v1/environments/$env_id/actions/$scaleGceUp)
 fi
 
 # gcp down
-if [ $gcp == "gcp" ] && [ $action == "down" ]; then
+if [ $gcp == "gce" ] && [ $action == "down" ]; then
     echo "Action ID: $scaleGceDown"
     task=$(curl -s -H "X-Auth-Token: $token" -H "Content-Type: application/json" -d "{}" http://$OPENSTACK_IP:8082/v1/environments/$env_id/actions/$scaleGceDown)
 fi

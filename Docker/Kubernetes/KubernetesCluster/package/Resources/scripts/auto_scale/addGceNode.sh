@@ -3,7 +3,7 @@
 
 set -e
 
-GCP_FILE="gceIpManager.sh"
+GCP_FILE="/opt/bin/autoscale/gceIpManager.sh"
 NODE_IP=$(bash $GCP_FILE free_node)
 NODE="root@$NODE_IP"
 
@@ -22,16 +22,30 @@ BIN_KUBECTL=/bin/kubectl
 # Retrieve the Master node from config file file
 function get-master-ip()
 {
-    conf_file="/etc/autoscale/autoscale.sh"
+    conf_file="/etc/autoscale/autoscale.conf"
     MASTER_IP=$(awk -F "=" '/^MASTER/ {print $2}' $conf_file)
 }
 # Transfers necessary bins and conf files to Minion
 function transer-files() {
     ssh $NODE "sudo mkdir -p /opt/bin ; mkdir -p ~/kube ; mkdir -p ~/kube/initd ; mkdir -p ~/kube/bin"
-    scp initd_scripts/* $NODE:~/kube/initd
+    scp /opt/bin/autoscale/initd_scripts/* $NODE:~/kube/initd
     scp /opt/bin/etcd /opt/bin/etcdctl /opt/bin/kubelet /opt/bin/kube-proxy /opt/bin/flanneld $NODE:~/kube/bin
     ssh $NODE "sudo cp ~/kube/bin/* /opt/bin ; sudo cp ~/kube/initd/* /etc/init.d"
     ssh $NODE "sudo chmod +x /etc/init.d/etcd /etc/init.d/kubelet /etc/init.d/kube-proxy /etc/init.d/flanneld"
+}
+
+function ssh-setup()
+{
+
+   if [ ! -f  ~/.ssh/id_rsa ] ; then
+       ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
+   fi
+   ssh-keyscan $NODE_IP >> ~/.ssh/known_hosts
+   #  TODO copy ssh id to gce node
+   echo "Biarca@123" > /tmp/paswd.txt
+   #/usr/bin/sshpass -f /tmp/paswd.txt ssh-copy-ip $NODE
+   sshpass -p "Biarca@123" ssh-copy-id root@10.30.0.71
+   rm /tmp/paswd.txt
 }
 
 
@@ -39,7 +53,7 @@ function transer-files() {
 function create-etcd-name() {
     # this func creates etcd names like new0, new1, new2...
     # change name pattern if required. ex: pattern="infra-"
-    pattern="new"
+    pattern="gce"
     count=0
     $BIN_ETCDCTL member list > /tmp/etcd.list
     name="$pattern$count"
@@ -66,14 +80,14 @@ function create-etcd-opts() {
 
   OPTS="--name $ETCD_NAME \
   --data-dir /var/lib/etcd \
-  --snapshot-count 1000 \ 
+  --snapshot-count 1000 \
   --initial-advertise-peer-urls  $ini_adv_peer \
   --listen-peer-urls $listen_peer_urls \
   --listen-client-urls $listen_client_urls \
   --advertise-client-urls $adv_client_urls \
   --initial-cluster $ETCD_INITIAL_CLUSTER \
   --initial-cluster-state $ETCD_INITIAL_CLUSTER_STATE"
-  
+
   ETCD_OPTS=`echo $OPTS | tr -s " "`  # remove extra spaces
 }
 
@@ -84,7 +98,7 @@ function create-kube-proxy-opts() {
     KUBE_PROXY_OPTS=`echo $OPTS | tr -s " "`  # remove extra spaces
 }
 
-function create-kubelet-opts() 
+function create-kubelet-opts()
 {
     OPTS="--address=0.0.0.0 \
           --port=$PORT_KUBELET \
@@ -99,12 +113,12 @@ function create-flanneld-opts()
 {
     OPTS="--iface=$NODE_IP"
     FLANNEL_OPTS=`echo $OPTS | tr -s " "`  # remove extra spaces
-}	
+}
 
 get-master-ip
 MASTER_URL="http://$MASTER_IP:8080"
-echo $MASTER_URL
-exit 0
+
+ssh-setup
 
 echo "Transferring files to $NODE:"
 transer-files
@@ -119,7 +133,7 @@ echo "ETCD name..  $ETCD_NAME"
 /opt/bin/etcdctl member add $ETCD_NAME http://$NODE_IP:$PORT_ETCD_LISTEN_PEER |tail -n +2  > /tmp/etcd.tmp
 
 source /tmp/etcd.tmp
-if [ -z $ETCD_INITIAL_CLUSTER ] ; then 
+if [ -z $ETCD_INITIAL_CLUSTER ] ; then
     echo "ETCD error"
     exit 1
 fi
@@ -140,6 +154,7 @@ ssh $NODE "sudo service kubelet start"
 sleep 1
 ssh $NODE "sudo service kube-proxy start"
 sleep 1
-ssh $NODE "service flanneld start"
+ssh $NODE "service flanneld restart"
 
+sleep 10
 echo "Done"

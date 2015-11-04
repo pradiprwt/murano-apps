@@ -27,7 +27,7 @@ fi
 
 option=$1
 
-if [ $option != "free_node" ] && [ $option != "busy_node" ] && [ $option != "details" ]
+if [ $option != "free_node" ] && [ $option != "busy_node" ] && [ $option != "details" ] && [ $option != "busy_count" ]
 then
     echo "Unkown Option: $option"
     usage
@@ -48,8 +48,8 @@ if [ -z $gcp_nodes ] ; then
     exit 0
 fi
 
-json=$(cat tmp)
-#json=`curl -s localhost:8080/api/v1/nodes`
+#json=$(cat tmp)
+json=`curl -s localhost:8080/api/v1/nodes`
 total_nodes=$(echo $json | jq --raw-output ".items | length")
 node_name=$(echo $json | jq --raw-output ".items[0].metadata.name")
 
@@ -172,3 +172,9 @@ if [ $option == "details" ] ; then
    details
    exit 0
 fi
+if [ $option == "busy_count" ] ; then
+  json=`details`
+  echo $json | jq --raw-output ".busy_nodes_count"
+  exit 0
+fi
+

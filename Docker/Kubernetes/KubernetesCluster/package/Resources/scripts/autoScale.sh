@@ -55,6 +55,7 @@ cp auto_scale/scale.sh /opt/bin/autoscale/
 cp auto_scale/autoscale /etc/init.d/
 sudo apt-get install python3-numpy -y
 sudo apt-get install jq
+sudo apt-get install sshpass -y
 service autoscale start
 
 exit 0

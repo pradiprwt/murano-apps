@@ -5,7 +5,6 @@ set -e
 
 GCP_FILE="/opt/bin/autoscale/gceIpManager.sh"
 NODE_IP=$(bash $GCP_FILE busy_node) # If you have NODE already,  then NODE_IP=${NODE#*@}
-NODE_IP=10.30.0.71
 NODE="root@$NODE_IP"
 
 ETCD_BIN="/opt/bin/etcdctl"
@@ -13,8 +12,8 @@ KUBECTL_BIN="/opt/bin/kubectl"
 TEMP_FILE="/tmp/etcd.list"
 
 if [ $NODE_IP == "0" ] ; then
-    echo "No GCE nodes to delete"
-#    exit 1
+    echo '{ "error": "No GCE nodes to delete" }'
+    exit 0
 fi
 
 

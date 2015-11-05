@@ -11,7 +11,7 @@ import subprocess
 from datetime import datetime
 
 data_file = "/etc/autoscale/autoscale.conf"
-# data_file = "tmp.conf"
+
 scale_script = "/opt/bin/autoscale/scale.sh"
 MAX_VMS_LIMIT = 0
 MIN_VMS_LIMIT = 0
@@ -31,7 +31,10 @@ def get_params():
     MIN_VMS_LIMIT = int(configParser.get('DEFAULT', 'min_vms_limit'))
     MAX_CPU_LIMIT = int(configParser.get('DEFAULT', 'MAX_CPU_LIMIT'))
     MIN_CPU_LIMIT = int(configParser.get('DEFAULT', 'MIN_CPU_LIMIT'))
-    MAX_GCE_VMS_LIMIT = int(configParser.get('GCE','gcp_minion_nodes'))
+    try:
+        MAX_GCE_VMS_LIMIT = int(configParser.get('GCE','gcp_minion_nodes'))
+    except Exception as e:
+        MAX_GCE_VMS_LIMIT = 0
 
 def get_cpu_usage(node_ip):
     api = "http://"+node_ip+":4194/api/v1.3/machine"
@@ -104,9 +107,12 @@ def get_private_nodes(total):
     return total-get_gcp_nodes()
 
 def get_gcp_nodes():
+    if MAX_GCE_VMS_LIMIT == 0 :
+        return 0
     #gce_nodes=os.system("sudo ./gceIpManger.sh busy_count")
     #print(gce_nodes)
-    output = subprocess.check_output("sudo bash gceIpManager.sh busy_count", shell=True)
+    gceIpManager="/opt/bin/autoscale/gceIpManager.sh"
+    output = subprocess.check_output("sudo bash "+gceIpManager+" busy_count", shell=True)
     return int(output)
 
 def print_limits():
@@ -131,45 +137,41 @@ def scaleUpNodes():
         print("Scaling up private ")
         #subprocess.check_output("sudo ./scale.sh up", shell=True)
         os.system(scale_script + ' up')
-        return
+        return True
     elif (get_gcp_nodes() < MAX_GCE_VMS_LIMIT):
         # GCE Scale UP
         print("private nodes limit has been reached")
         print("Scaling up GCE")
         #subprocess.check_output("sudo ./scale.sh up gce", shell=True)
         os.system(scale_script + ' up gce')
-        return
+        return True
     else:
         # Max reached
         print("Max nodes have been reached")
-        return
+        return False
 
 def scaleDownNodes():
     if (get_gcp_nodes() > MIN_GCE_VMS_LIMIT):
         # GCE Scale Down
         print("GCE Scale Down")
-        #subprocess.check_output("sudo ./scale.sh down gce", shell=True)
-        #subprocess.check_output("sudo ./sleep.sh", shell=True)
         os.system(scale_script + ' down gce')
-        return
+        return True
     elif (private_nodes > MIN_VMS_LIMIT):
         # Private Scale down
         print("Private Scale down ")
-        #subprocess.check_output("sudo ./scale.sh down", shell=True)
-        os.system(scale_script + 'down')
-        #subprocess.check_output("sudo ./sleep.sh", shell=True)
-        return
+        os.system(scale_script + ' down')
+        return True
     else:
         # Already Min
-        print("Min nodes have been reached")
-        return
+        #print("Min nodes have been reached")
+        return False
 
 get_params()
 print("Waiting for Cluster")
 while ( get_k8s_status() != True ):
     time.sleep(1)
 print("cluster is up")
-# time.sleep(20)
+time.sleep(20)
 print_limits()
 
 while 1:
@@ -193,9 +195,11 @@ while 1:
 
         private_nodes=get_private_nodes(total_minions)
         if (cpu_usage > MAX_CPU_LIMIT):
-            scaleUpNodes()
+            if(scaleUpNodes() == True):
+                break;
         elif (cpu_usage < MIN_CPU_LIMIT):
-            scaleDownNodes()
+            if(scaleDownNodes() == True):
+                break;
         time.sleep(1)
     time.sleep(2)
 

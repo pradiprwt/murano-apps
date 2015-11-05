@@ -7,6 +7,11 @@ GCP_FILE="/opt/bin/autoscale/gceIpManager.sh"
 NODE_IP=$(bash $GCP_FILE free_node)
 NODE="root@$NODE_IP"
 
+if [ $NODE_IP == "0" ] ; then
+    echo '{ "error": "No GCE nodes available"}';
+    exit 0
+fi
+
 # don't afraid to change the ports
 PORT_ETCD_ADVERT_PEER=7001
 PORT_ETCD_ADVERT_CLIENT=4001
@@ -42,10 +47,7 @@ function ssh-setup()
    fi
    ssh-keyscan $NODE_IP >> ~/.ssh/known_hosts
    #  TODO copy ssh id to gce node
-   echo "Biarca@123" > /tmp/paswd.txt
-   #/usr/bin/sshpass -f /tmp/paswd.txt ssh-copy-ip $NODE
-   sshpass -p "Biarca@123" ssh-copy-id root@10.30.0.71
-   rm /tmp/paswd.txt
+   sshpass -p "Biarca@123" ssh-copy-id $NODE
 }
 
 
@@ -53,7 +55,7 @@ function ssh-setup()
 function create-etcd-name() {
     # this func creates etcd names like new0, new1, new2...
     # change name pattern if required. ex: pattern="infra-"
-    pattern="gce"
+    pattern="gce-"
     count=0
     $BIN_ETCDCTL member list > /tmp/etcd.list
     name="$pattern$count"
@@ -158,3 +160,4 @@ ssh $NODE "service flanneld restart"
 
 sleep 10
 echo "Done"
+

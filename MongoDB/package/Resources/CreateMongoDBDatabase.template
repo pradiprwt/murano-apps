@@ -12,21 +12,20 @@
 
 FormatVersion: 2.0.0
 Version: 1.0.0
-Name: Remove Minion
+Name: Create MongoDB database
 
 Parameters:
-  nodeId: $nodeId
+  database: $database
 
 Body: |
-  removeMinion(args.nodeId)
+  return createMongoDBDatabase(args.database).stdout
 
 Scripts:
-  removeMinion:
+  createMongoDBDatabase:
     Type: Application
     Version: 1.0.0
-    EntryPoint: removeMinion.sh
+    EntryPoint: createMongoDBDatabase.sh
     Files: []
     Options:
       captureStdout: true
       captureStderr: true
-

@@ -10,23 +10,16 @@
 #  License for the specific language governing permissions and limitations
 #  under the License.
 
-FormatVersion: 2.0.0
-Version: 1.0.0
-Name: Remove Minion
-
-Parameters:
-  nodeId: $nodeId
-
-Body: |
-  removeMinion(args.nodeId)
-
-Scripts:
-  removeMinion:
-    Type: Application
-    Version: 1.0.0
-    EntryPoint: removeMinion.sh
-    Files: []
-    Options:
-      captureStdout: true
-      captureStderr: true
-
+Format: 1.0
+Type: Application
+FullName: io.murano.databases.MongoDB
+Name: MongoDB
+Description: |
+ MongoDB is a cross-platform document-oriented database.
+ Classified as a NoSQL database, MongoDB eschews
+ the traditional table-based relational database structure
+ in favor of JSON-like documents with dynamic schemas.
+Author: 'Huawei, Inc'
+Tags: [MongoDB]
+Classes:
+ io.murano.databases.MongoDB: MongoDB.yaml

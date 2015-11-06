@@ -12,21 +12,20 @@
 
 FormatVersion: 2.0.0
 Version: 1.0.0
-Name: Remove Minion
+Name: Deploy MongoDB
 
 Parameters:
-  nodeId: $nodeId
+  appName: $appName
 
 Body: |
-  removeMinion(args.nodeId)
+  return deployMongoDB(args.appName).stdout
 
 Scripts:
-  removeMinion:
+  deployMongoDB:
     Type: Application
     Version: 1.0.0
-    EntryPoint: removeMinion.sh
+    EntryPoint: deployMongoDB.sh
     Files: []
     Options:
       captureStdout: true
       captureStderr: true
-

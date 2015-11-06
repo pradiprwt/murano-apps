@@ -12,21 +12,20 @@
 
 FormatVersion: 2.0.0
 Version: 1.0.0
-Name: Remove Minion
+Name: Add Firewall Rules
 
 Parameters:
-  nodeId: $nodeId
+  appName: $appName
 
 Body: |
-  removeMinion(args.nodeId)
+  return addFirewallRules(args.appName).stdout
 
 Scripts:
-  removeMinion:
+  addFirewallRules:
     Type: Application
     Version: 1.0.0
-    EntryPoint: removeMinion.sh
+    EntryPoint: addFirewallRules.sh
     Files: []
     Options:
       captureStdout: true
       captureStderr: true
-

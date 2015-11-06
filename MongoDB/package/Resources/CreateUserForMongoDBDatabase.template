@@ -12,21 +12,22 @@
 
 FormatVersion: 2.0.0
 Version: 1.0.0
-Name: Remove Minion
+Name: Create user for MongoDB database
 
 Parameters:
-  nodeId: $nodeId
+  database: $database
+  username: $username
+  password: $password
 
 Body: |
-  removeMinion(args.nodeId)
+  return createUserForMongoDBDatabase('{0} {1} {2}'.format(args.database, args.username, args.password)).stdout
 
 Scripts:
-  removeMinion:
+  createUserForMongoDBDatabase:
     Type: Application
     Version: 1.0.0
-    EntryPoint: removeMinion.sh
+    EntryPoint: createUserForMongoDBDatabase.sh
     Files: []
     Options:
       captureStdout: true
       captureStderr: true
-

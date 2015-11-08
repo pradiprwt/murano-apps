@@ -4,12 +4,17 @@
 set -e
 
 GCP_FILE="/opt/bin/autoscale/gceIpManager.sh"
-NODE_IP=$(bash $GCP_FILE busy_node) # If you have NODE already,  then NODE_IP=${NODE#*@}
-NODE="root@$NODE_IP"
+conf_file="/etc/autoscale/autoscale.conf"
+TEMP_FILE="/tmp/etcd.list"
+HORIZON_LOG="/tmp/autoscale.log"
+
+NODE_USER=$(awk -F "=" '/^gcp_username/ {print $2}' $conf_file)
+NODE_IP=$(bash $GCP_FILE busy_node)
+NODE_IP="10.30.0.71"
+NODE="$NODE_USER@$NODE_IP"
 
 ETCD_BIN="/opt/bin/etcdctl"
 KUBECTL_BIN="/opt/bin/kubectl"
-TEMP_FILE="/tmp/etcd.list"
 
 if [ $NODE_IP == "0" ] ; then
     echo '{ "error": "No GCE nodes to delete" }'
@@ -19,16 +24,17 @@ fi
 
 # files to remove from node
 function clean-files() {
-    ssh $NODE "sudo rm -rf /opt/bin ; sudo rm -rf  ~/kube"
-    ssh $NODE "sudo rm /etc/init.d/etcd /etc/init.d/kubelet /etc/init.d/kube-proxy /etc/init.d/flanneld"
+    ssh $NODE "sudo rm -rf /opt/bin ; rm -rf  ~/kube"
+    ssh $NODE "sudo rm -f /etc/init.d/etcd /etc/init.d/kubelet /etc/init.d/kube-proxy /etc/init.d/flanneld"
     ssh $NODE "sudo rm -rf /var/lib/etcd"
+    ssh $NODE "sudo rm -f /etc/default/etcd /etc/default/kubelet /etc/default/kube-proxy /etc/default/flanneld"
 
 }
 
 # remove this node from etcd member list
 function remove-etcd() {
-    sudo $ETCD_BIN member list > $TEMP_FILE
-    sudo chmod 0666 $TEMP_FILE
+    $ETCD_BIN member list > $TEMP_FILE
+    chmod 0666 $TEMP_FILE
     while read -r line
     do
         name=$line
@@ -36,11 +42,11 @@ function remove-etcd() {
         then
             id=`echo $line | cut -d ":"  -f 1`
             echo "Deleting ID:$id from Cluster"
-            sudo $ETCD_BIN member remove $id
+            $ETCD_BIN member remove $id
             break
         fi
     done < $TEMP_FILE
-    sudo rm $TEMP_FILE
+    rm $TEMP_FILE
 }
 # stop the services
 function stop-services() {
@@ -51,11 +57,14 @@ function stop-services() {
 
 
 # delete this node from kubectl get nodes
-sudo $KUBECTL_BIN delete nodes $NODE_IP
+$KUBECTL_BIN label nodes $NODE_IP type-
+$KUBECTL_BIN delete nodes $NODE_IP
 
-stop-services
 remove-etcd
+stop-services
+
 clean-files
 
+# To settle down the cluster noise
 sleep 5
 

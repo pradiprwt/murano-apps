@@ -11,7 +11,6 @@ import subprocess
 from datetime import datetime
 
 data_file = "/etc/autoscale/autoscale.conf"
-
 scale_script = "/opt/bin/autoscale/scale.sh"
 MAX_VMS_LIMIT = 0
 MIN_VMS_LIMIT = 0
@@ -21,9 +20,12 @@ MAX_CPU_LIMIT = 0
 MIN_CPU_LIMIT = 0
 CUR_NODES_COUNT = 0
 NODES_OBJ = {}
+
+
 # Parsing input parameters from autoscale.conf
 def get_params():
-    global MAX_VMS_LIMIT, MIN_VMS_LIMIT, MIN_GCE_VMS_LIMIT, MAX_GCE_VMS_LIMIT, MAX_CPU_LIMIT, MIN_CPU_LIMIT, MASTER
+    global MAX_VMS_LIMIT, MIN_VMS_LIMIT, MIN_GCE_VMS_LIMIT
+    global MAX_GCE_VMS_LIMIT, MAX_CPU_LIMIT, MIN_CPU_LIMIT, MASTER
     configParser = configparser.ConfigParser()
     configParser.read(data_file)
     MASTER = configParser.get('DEFAULT', 'MASTER')
@@ -32,9 +34,10 @@ def get_params():
     MAX_CPU_LIMIT = int(configParser.get('DEFAULT', 'MAX_CPU_LIMIT'))
     MIN_CPU_LIMIT = int(configParser.get('DEFAULT', 'MIN_CPU_LIMIT'))
     try:
-        MAX_GCE_VMS_LIMIT = int(configParser.get('GCE','gcp_minion_nodes'))
+        MAX_GCE_VMS_LIMIT = int(configParser.get('GCE', 'gcp_minion_nodes'))
     except Exception as e:
         MAX_GCE_VMS_LIMIT = 0
+
 
 def get_cpu_usage(node_ip):
     api = "http://"+node_ip+":4194/api/v1.3/machine"
@@ -74,6 +77,7 @@ def get_cpu_usage(node_ip):
     cpu_usage = int(cpu_usage)
     return cpu_usage
 
+
 # retuns True, if cluster is ready.
 def get_k8s_status():
     api = "http://"+MASTER+":8080"
@@ -87,6 +91,7 @@ def get_k8s_status():
         print("not OK")
         print(e)
         return False
+
 
 def get_total_nodes():
     global NODES_OBJ
@@ -103,17 +108,21 @@ def get_total_nodes():
     except Exception as e:
         return -1
 
+
 def get_private_nodes(total):
     return total-get_gcp_nodes()
 
+
 def get_gcp_nodes():
-    if MAX_GCE_VMS_LIMIT == 0 :
+    if MAX_GCE_VMS_LIMIT == 0:
         return 0
-    #gce_nodes=os.system("sudo ./gceIpManger.sh busy_count")
-    #print(gce_nodes)
-    gceIpManager="/opt/bin/autoscale/gceIpManager.sh"
-    output = subprocess.check_output("sudo bash "+gceIpManager+" busy_count", shell=True)
+    # gce_nodes=os.system("sudo ./gceIpManger.sh busy_count")
+    # print(gce_nodes)
+    gceIpManager = "/opt/bin/autoscale/gceIpManager.sh"
+    cmd = "sudo bash "+gceIpManager+" busy_count"
+    output = subprocess.check_output(cmd, shell=True)
     return int(output)
+
 
 def print_limits():
     print ("Max VMs in Cluster: ", MAX_VMS_LIMIT)
@@ -123,32 +132,36 @@ def print_limits():
     print ("Max CPU Usage Limit: ", MAX_CPU_LIMIT)
     print ("Min CPU Usage Limit: ", MIN_CPU_LIMIT, "\n")
 
+
 def is_node_ready(minion):
     try:
-        if NODES_OBJ["items"][minion]["status"]["conditions"][0]["status"] != "True":
+        if NODES_OBJ["items"][minion]["status"]["conditions"][0]["status"] != \
+           "True":
             return False
     except Exception as e:
         return False
     return True
 
+
 def scaleUpNodes():
     if (private_nodes < MAX_VMS_LIMIT):
         # Private Scale up
         print("Scaling up private ")
-        #subprocess.check_output("sudo ./scale.sh up", shell=True)
+        # subprocess.check_output("sudo ./scale.sh up", shell=True)
         os.system(scale_script + ' up')
         return True
     elif (get_gcp_nodes() < MAX_GCE_VMS_LIMIT):
         # GCE Scale UP
         print("private nodes limit has been reached")
         print("Scaling up GCE")
-        #subprocess.check_output("sudo ./scale.sh up gce", shell=True)
+        # subprocess.check_output("sudo ./scale.sh up gce", shell=True)
         os.system(scale_script + ' up gce')
         return True
     else:
         # Max reached
         print("Max nodes have been reached")
         return False
+
 
 def scaleDownNodes():
     if (get_gcp_nodes() > MIN_GCE_VMS_LIMIT):
@@ -163,43 +176,44 @@ def scaleDownNodes():
         return True
     else:
         # Already Min
-        #print("Min nodes have been reached")
+        # print("Min nodes have been reached")
         return False
 
 get_params()
 print("Waiting for Cluster")
-while ( get_k8s_status() != True ):
+while (get_k8s_status() is not True):
     time.sleep(1)
 print("cluster is up")
 time.sleep(20)
 print_limits()
 
 while 1:
-    total_minions=get_total_nodes()
-    if ( total_minions == -1):
+    total_minions = get_total_nodes()
+    if (total_minions == -1):
         continue
-    minion=0
+    minion = 0
     while minion < total_minions:
         node_ip = NODES_OBJ["items"][minion]["metadata"]["name"]
 
-        if (is_node_ready(minion) == False):
+        if (is_node_ready(minion) is False):
             minion += 1
             continue
-        print("monitoring minion: ", node_ip)
+        # print("monitoring minion: ", node_ip)
         minion += 1
 
-        cpu_usage=get_cpu_usage(node_ip)
-        if( cpu_usage == False):
-             continue
-        print ("CPU usage :", cpu_usage)
+        cpu_usage = get_cpu_usage(node_ip)
+        if(cpu_usage is False):
+            continue
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print (timestamp + " - CPU usage of "+node_ip+" :", cpu_usage)
 
-        private_nodes=get_private_nodes(total_minions)
+        private_nodes = get_private_nodes(total_minions)
         if (cpu_usage > MAX_CPU_LIMIT):
-            if(scaleUpNodes() == True):
-                break;
+            if(scaleUpNodes() is True):
+                break
         elif (cpu_usage < MIN_CPU_LIMIT):
-            if(scaleDownNodes() == True):
-                break;
-        time.sleep(1)
-    time.sleep(2)
+            if(scaleDownNodes() is True):
+                break
+        time.sleep(2)
+    time.sleep(3)
 

@@ -44,6 +44,10 @@ Properties:
     Contract: $.string()
   gcpNodes:
     Contract: $.string()
+  gcpUserName:
+    Contract: $.string()
+  gcpPassword:
+    Contract: $.string()
 
 Methods:
   initialize:
@@ -115,7 +119,9 @@ Methods:
                 userPassword => $.userPassword,
                 enableGCP => $.enableGCP,
                 gcpMinionNodes => $.gcpMinionNodes,
-                gcpNodes => $.gcpNodes
+                gcpNodes => $.gcpNodes,
+                gcpUserName => $.gcpUserName,
+                gcpPassword => $.gcpPassword
               ))
           - $.instance.agent.call($template, $resources)
           - $.setAttr(autoscaleConfigured, true)

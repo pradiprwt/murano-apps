@@ -35,6 +35,8 @@ Templates:
     enableGCP: $.scaleConfiguration.enableGCP
     gcpMinionNodes: $.scaleConfiguration.gcpMinionNodes
     gcpNodes: $.scaleConfiguration.gcpNodes
+    gcpUserName: $.scaleConfiguration.gcpUserName
+    gcpPassword: $.scaleConfiguration.gcpPassword
 
   minionNode:
     ?:
@@ -235,9 +237,9 @@ Forms:
           type: boolean
           initial: false
           required: false
-          label: Hybrid Cloud(GCP)
+          label: Hybrid Cloud(GCE)
           description: >-
-            Enable GCP for Hybrid Cloud scale.
+            Enable GCE for Hybrid Cloud scale.
         - name: gcpMinionNodes
           type: integer
           initial: 1
@@ -245,13 +247,25 @@ Forms:
           required: false
           label: Number of minion nodes
           description: >-
-            Number of minions from GCP for scale.
+            Number of minions from GCE for scale.
         - name: gcpNodes
           type: string
           required: false
           label: Nodes
           description: >-
             Provide Nodes detailes.
+        - name: gcpUserName
+          type: string
+          required: false
+          label: Username
+          description: >-
+            Provide username of GCE account.
+        - name: gcpPassword
+          type: string
+          required: false
+          label: Password
+          description: >-
+            Provide password for GCE account.
 
   - instanceConfiguration:
       fields:

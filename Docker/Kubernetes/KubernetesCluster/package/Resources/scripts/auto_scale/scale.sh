@@ -63,22 +63,13 @@ scaleGceDown=`echo $services | grep -o '[a-z0-9-]*_deleteGceNode'`
 if [ -z $gcp ] && [ $action == "up" ] ; then
     echo "Action ID: $scaleUp"
     task=$(curl -s -H "X-Auth-Token: $token" -H "Content-Type: application/json" -d "{}" http://$OPENSTACK_IP:8082/v1/environments/$env_id/actions/$scaleUp)
-fi
-
-# down
-if [ -z $gcp ] && [ $action == "down" ] ; then
+elif [ -z $gcp ] && [ $action == "down" ] ; then
     echo "Action ID: $scaleDown"
     task=$(curl -s -H "X-Auth-Token: $token" -H "Content-Type: application/json" -d "{}" http://$OPENSTACK_IP:8082/v1/environments/$env_id/actions/$scaleDown)
-fi
-
-# gcp up
-if [ $gcp == "gce" ] && [ $action == "up" ]; then
+elif [ $gcp == "gce" ] && [ $action == "up" ]; then
     echo "Action ID: $scaleGceUp"
     task=$(curl -s -H "X-Auth-Token: $token" -H "Content-Type: application/json" -d "{}" http://$OPENSTACK_IP:8082/v1/environments/$env_id/actions/$scaleGceUp)
-fi
-
-# gcp down
-if [ $gcp == "gce" ] && [ $action == "down" ]; then
+elif [ $gcp == "gce" ] && [ $action == "down" ]; then
     echo "Action ID: $scaleGceDown"
     task=$(curl -s -H "X-Auth-Token: $token" -H "Content-Type: application/json" -d "{}" http://$OPENSTACK_IP:8082/v1/environments/$env_id/actions/$scaleGceDown)
 fi

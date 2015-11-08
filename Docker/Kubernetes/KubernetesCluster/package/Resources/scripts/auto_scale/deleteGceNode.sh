@@ -10,7 +10,6 @@ HORIZON_LOG="/tmp/autoscale.log"
 
 NODE_USER=$(awk -F "=" '/^gcp_username/ {print $2}' $conf_file)
 NODE_IP=$(bash $GCP_FILE busy_node)
-NODE_IP="10.30.0.71"
 NODE="$NODE_USER@$NODE_IP"
 
 ETCD_BIN="/opt/bin/etcdctl"

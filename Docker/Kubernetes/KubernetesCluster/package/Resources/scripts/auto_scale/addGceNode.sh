@@ -45,11 +45,8 @@ function ssh-setup()
    if [ ! -f  ~/.ssh/id_rsa ] ; then
        ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
    fi
-   echo "1"
    ssh-keyscan $NODE_IP >> ~/.ssh/known_hosts
-   echo "2"
    sshpass -p $NODE_PASSWD ssh-copy-id $NODE
-   echo "3"
 }
 
 # generate a etcd member name for new node.

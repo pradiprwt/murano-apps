@@ -19,8 +19,9 @@ MIN_GCE_VMS_LIMIT = 0
 MAX_CPU_LIMIT = 0
 MIN_CPU_LIMIT = 0
 CUR_NODES_COUNT = 0
+ATTEMPTS=20
 NODES_OBJ = {}
-
+NEW_ADDED_NODES={}  # {"node":"attempt"}
 
 # Parsing input parameters from autoscale.conf
 def get_params():
@@ -146,15 +147,13 @@ def is_node_ready(minion):
 def scaleUpNodes():
     if (private_nodes < MAX_VMS_LIMIT):
         # Private Scale up
-        print("Scaling up private ")
-        # subprocess.check_output("sudo ./scale.sh up", shell=True)
+        print("Scaling up private")
         os.system(scale_script + ' up')
         return True
     elif (get_gcp_nodes() < MAX_GCE_VMS_LIMIT):
         # GCE Scale UP
         print("private nodes limit has been reached")
         print("Scaling up GCE")
-        # subprocess.check_output("sudo ./scale.sh up gce", shell=True)
         os.system(scale_script + ' up gce')
         return True
     else:
@@ -167,11 +166,17 @@ def scaleDownNodes():
     if (get_gcp_nodes() > MIN_GCE_VMS_LIMIT):
         # GCE Scale Down
         print("GCE Scale Down")
+        gceIpManager = "/opt/bin/autoscale/gceIpManager.sh"
+        output = subprocess.check_output(cmd, shell=True)
+        cmd = "sudo bash "+gceIpManager+" busy_node"
+        output=output.decode("utf-8")[:-1]
         os.system(scale_script + ' down gce')
+        if output in NEW_ADDED_NODES:
+            del NEW_ADDED_NODES[output]
         return True
     elif (private_nodes > MIN_VMS_LIMIT):
         # Private Scale down
-        print("Private Scale down ")
+        print("Private Scale down")
         os.system(scale_script + ' down')
         return True
     else:
@@ -206,7 +211,12 @@ while 1:
             continue
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print (timestamp + " - CPU usage of "+node_ip+" :", cpu_usage)
-
+ 
+        if node_ip  not in NEW_ADDED_NODES:
+            NEW_ADDED_NODES[node_ip] = ATTEMPTS
+        if NEW_ADDED_NODES[node_ip] != 0:
+            NEW_ADDED_NODES[node_ip] = NEW_ADDED_NODES[node_ip] - 1 
+            continue
         private_nodes = get_private_nodes(total_minions)
         if (cpu_usage > MAX_CPU_LIMIT):
             if(scaleUpNodes() is True):
@@ -216,4 +226,3 @@ while 1:
                 break
         time.sleep(2)
     time.sleep(3)
-

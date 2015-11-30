@@ -37,6 +37,12 @@ PORT_K8S_MASTER=8080
 BIN_ETCDCTL=/opt/bin/etcdctl
 BIN_KUBECTL=/opt/bin/kubectl
 
+FILE_AUTO_FLAG="/tmp/autoscale"
+if [ ! -f $FILE_AUTO_FLAG ] ; then
+    AUTO_FLAG=0
+else
+    AUTO_FLAG=`cat $FILE_AUTO_FLAG`
+fi
 
 
 function ssh-setup()
@@ -171,7 +177,11 @@ echo FLANNEL_OPTS="\"$FLANNEL_OPTS\"" > /opt/bin/autoscale/kube/default/flanneld
 transfer-files
 run-services
 
+bash $GCP_FILE add_node $NODE_IP
 sleep 3
 
-$BIN_KUBECTL label nodes $NODE_IP type=GCE
+$BIN_KUBECTL label nodes $NODE_IP type=GCE || true
 
+if [ $AUTO_FLAG == "1" ] ; then
+    $BIN_KUBECTL label nodes $NODE_IP creationType="Auto" || true
+fi

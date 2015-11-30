@@ -253,7 +253,7 @@ Forms:
           required: false
           label: Nodes
           description: >-
-            Provide Nodes details.
+            Provide Nodes details
         - name: gcpUserName
           type: string
           required: false

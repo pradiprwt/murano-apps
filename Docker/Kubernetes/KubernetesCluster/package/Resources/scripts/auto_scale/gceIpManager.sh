@@ -20,17 +20,18 @@ function usage()
 }
 
 
-if [ $# -ne 1 ] ; then
+if [ $# -eq 0 ] ; then
     usage
     exit 1
 fi
 
 option=$1
 
-if [ $option != "free_node" ] && [ $option != "busy_node" ] && [ $option != "details" ] && [ $option != "busy_count" ]
-then
-    echo "Unkown Option: $option"
-    usage
+OPTIONS=(free_node busy_node busy_count add_node del_node details auto_busy_node)
+if [[ " ${OPTIONS[@]} " =~ " ${1} " ]]; then
+    option=$1
+else
+    echo "Unknow option: $1"
     exit 1
 fi
 
@@ -48,10 +49,18 @@ if [ -z $gcp_nodes ] ; then
     exit 0
 fi
 
+AUTO_FLAG_FILE="/tmp/autoscale"
+if [ ! -f $AUTO_FLAG_FILE ] ; then 
+    AUTO_FLAG=0
+else 
+    AUTO_FLAG=`cat $AUTO_FLAG_FILE`
+fi
+LIST_STATIC_NODES="/etc/autoscale/static_nodes.list"
+LIST_AUTO_NODES="/etc/autoscale/auto_nodes.list"
+
 #json=$(cat tmp)
 json=`curl -s localhost:8080/api/v1/nodes`
 total_nodes=$(echo $json | jq --raw-output ".items | length")
-node_name=$(echo $json | jq --raw-output ".items[0].metadata.name")
 
 GCP_ARRAY=()
 count=0
@@ -106,70 +115,93 @@ function get_free_node()
 # returns last busy node
 function get_busy_node()
 {
-    #check first node is busy
-    first_node=${GCP_ARRAY[0]}
-    ret=$(is_node_available $first_node)
-    if [ $ret == "0" ] ; then
-        echo "0"
-        return;
+    if [ $AUTO_FLAG == "1" ] ; then
+      if [ -f $LIST_AUTO_NODES ]; then
+        busyNode=`tail -n1 $LIST_AUTO_NODES` 
+      fi
+    else
+      if [ -f $LIST_STATIC_NODES ]; then
+        busyNode=`tail -n1 $LIST_STATIC_NODES`
+      fi
     fi
-
-    prev_node=$first_node
-    for node in "${GCP_ARRAY[@]}"
-    do
-        ret=$(is_node_available $node)
-        if [ $ret == "0" ] ; then
-            echo $prev_node
-            return;
-        fi
-        prev_node=$node
-    done
-
-    # all busy. Return last one
-    echo ${GCP_ARRAY[-1]}
+    if [ $busyNode ] ; then
+        echo $busyNode
+    else
+        echo 0
+    fi
 }
 
-function details()
+
+function details() 
 {
-    total_gcp_nodes=${#GCP_ARRAY[@]}
-    first_node=${GCP_ARRAY[0]}
-    ret=$(is_node_available $first_node)
-    if [ $ret == "0" ] ; then
-       busy_nodes=0
+    create_gcp_array
+    gce_nodes_count=${#GCP_ARRAY[@]}
+    if [ ! -f $LIST_AUTO_NODES ] ; then
+        auto_nodes_cnt=0
+    else
+        auto_nodes_cnt=`wc -l $LIST_AUTO_NODES | awk '{print $1;}'`
     fi
-
-    if [ -z $busy_nodes ] ; then
-        prev_node=$first_node
-        for node in "${GCP_ARRAY[@]}"
-        do
-            ret=$(is_node_available $node)
-            if [ $ret == "0" ] ; then
-                break;
-            fi
-            prev_node=$node
-            let busy_nodes=busy_nodes+1
-        done
+    if [ ! -f $LIST_STATIC_NODES ] ; then
+        static_nodes_cnt=0
+    else
+        static_nodes_cnt=`wc -l $LIST_STATIC_NODES | awk '{print $1;}'`
     fi
+    
+    ((gce_busy_count=auto_nodes_cnt+static_nodes_cnt))
     echo "{"
-    echo "\"nodes_list\": \"$gcp_nodes\","
-    echo "\"total_nodes_count\": \"$total_gcp_nodes\","
-    echo "\"busy_nodes_count\": \"$busy_nodes\""
+    echo "\"gce_nodes\":  \"$gcp_nodes\","
+    echo "\"gce_nodes_count\": \"$gce_nodes_count\","
+    echo "\"busy_nodes_count\": \"$gce_busy_count\""
     echo "}"
-
 }
 
-create_gcp_array
+function add-node-conf()
+{
+    new_node=$1
+    if [ $AUTO_FLAG == "1" ] ; then
+        echo $new_node >> $LIST_AUTO_NODES
+    else
+        echo $new_node >> $LIST_STATIC_NODES
+    fi
+}
 
+function del-node-conf()
+{
+    del_node=$1
+    if [ $AUTO_FLAG == "1" ] ; then
+        head -n -1 $LIST_AUTO_NODES > "$LIST_AUTO_NODES.tmp"
+        mv "$LIST_AUTO_NODES.tmp" $LIST_AUTO_NODES
+    else 
+        head -n -1 $LIST_STATIC_NODES > $LIST_STATIC_NODES.tmp
+        mv $LIST_STATIC_NODES.tmp $LIST_STATIC_NODES
+    fi
+}
+
+
+case $option in
+    add_node)
+        if [ $2 ]; then
+            add-node-conf $2
+        fi
+        ;;
+    del_node)
+        del-node-conf
+        ;;
+    details)
+        details
+        ;;
+    auto_busy_node)
+        AUTO_FLAG=1
+        get_busy_node
+        ;;
+esac
 if [ $option == "free_node" ] ; then
+   create_gcp_array
    get_free_node
    exit 0
 fi
 if [ $option == "busy_node" ] ; then
    get_busy_node
-   exit 0
-fi
-if [ $option == "details" ] ; then
-   details
    exit 0
 fi
 if [ $option == "busy_count" ] ; then

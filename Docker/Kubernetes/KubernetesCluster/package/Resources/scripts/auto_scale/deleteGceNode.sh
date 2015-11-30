@@ -20,6 +20,12 @@ if [ $NODE_IP == "0" ] ; then
     exit 0
 fi
 
+#FILE_AUTO_FLAG="/tmp/autoscale"
+if [ ! -f $FILE_AUTO_FLAG ] ; then
+    AUTO_FLAG=0
+else
+    AUTO_FLAG=`cat $FILE_AUTO_FLAG`
+fi
 
 # files to remove from node
 function clean-files() {
@@ -56,14 +62,17 @@ function stop-services() {
 
 
 # delete this node from kubectl get nodes
-$KUBECTL_BIN label nodes $NODE_IP type-
+$KUBECTL_BIN label nodes $NODE_IP type- || true
+if [ $AUTO_FLAG == "1" ] ; then
+   $KUBECTL_BIN label nodes $NODE_IP creationType- || true
+fi
 $KUBECTL_BIN delete nodes $NODE_IP
 
 remove-etcd
 stop-services
 
 clean-files
+bash $GCP_FILE del_node
 
 # To settle down the cluster noise
-sleep 5
-
+sleep 3

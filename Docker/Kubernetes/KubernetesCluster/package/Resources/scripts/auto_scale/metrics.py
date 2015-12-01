@@ -19,9 +19,11 @@ MIN_GCE_VMS_LIMIT = 0
 MAX_CPU_LIMIT = 0
 MIN_CPU_LIMIT = 0
 CUR_NODES_COUNT = 0
+POLLING_CLUSTER_PERIOD = 5
 NODES_OBJ = {}
 ALL_NODES={} # { "nodeIP" { "cpu" : 40, "auto": True } }
-
+MAX_HYSTERESIS_COUNT = 6
+CUR_HYSTERESIS = { "count": 0, "sample_type": None } # { sample_type="scaleUp" or "scaleDown" }
 UPDATED_NODES_LIST=[]
 
 # Parsing input parameters from autoscale.conf
@@ -164,7 +166,7 @@ def is_auto_created(minion):
 
 def update_removed_nodes():
     removed_nodes=[]
-    global UPDATED_NODES_LIST, ALL_NODES
+    global UPDATED_NODES_LIST, ALL_NODES, CUR_HYSTERESIS
     for n in ALL_NODES:
         if n not in UPDATED_NODES_LIST:
             removed_nodes.append(n)
@@ -172,6 +174,7 @@ def update_removed_nodes():
         del ALL_NODES[n]
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print (timestamp + " - " + n + " node removed from cluster")
+        CUR_HYSTERESIS["count"] = 0
 
 def scaleUpNodes():
     if (private_nodes < MAX_VMS_LIMIT):
@@ -244,7 +247,8 @@ while 1:
             continue
         if node_ip not in ALL_NODES:
            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-           print (timestamp + " - "+"Stared monitoring node " + node_ip)
+           print (timestamp + " - "+"Started monitoring node " + node_ip)
+           CUR_HYSTERESIS["count"] = 0
            time.sleep(3)
            if is_auto_created(minion-1):
                ALL_NODES[node_ip] = { "cpu": cpu_usage,"auto": True }
@@ -258,17 +262,37 @@ while 1:
 
     private_nodes = get_private_nodes(total_minions)
     if not ALL_NODES:
+        CUR_HYSTERESIS["count"]=0
         time.sleep(3)
         continue
+    AUTO_CREATED_NODES = dict((node,details) for node, details in ALL_NODES.items() if details["auto"])
     if all(MAX_CPU_LIMIT > v['cpu'] > MIN_CPU_LIMIT for v in ALL_NODES.values()):
+        # All nodes in within threshold level
+        CUR_HYSTERESIS["count"] = 0
         time.sleep(3)
         continue
-    elif any(v['cpu'] < MIN_CPU_LIMIT for v in ALL_NODES.values()):
-        if any(v['cpu'] > MAX_CPU_LIMIT for v in ALL_NODES.values()):
-           time.sleep(3)
-           continue
-    if any(v['cpu'] > MAX_CPU_LIMIT for v in ALL_NODES.values()):
-        scaleUpNodes()
-    elif any(v['cpu'] < MIN_CPU_LIMIT for v in ALL_NODES.values()):
-        scaleDownNodes()
-    time.sleep(3)
+    elif any(v['cpu'] < MIN_CPU_LIMIT for v in ALL_NODES.values()) and \
+        any(v['cpu'] > MAX_CPU_LIMIT for v in ALL_NODES.values()):
+            # Some nodes are above max and below min threshold
+            CUR_HYSTERESIS["count"] = 0
+            time.sleep(3)
+            continue
+    elif any(v['cpu'] > MAX_CPU_LIMIT for v in ALL_NODES.values()):
+        if CUR_HYSTERESIS["sample_type"] != "scaleUp":
+            CUR_HYSTERESIS["sample_type"] = "scaleUp"
+            CUR_HYSTERESIS["count"] = 1
+        elif CUR_HYSTERESIS["count"] == MAX_HYSTERESIS_COUNT:
+            if scaleUpNodes():
+                CUR_HYSTERESIS["count"] = 0
+        else:
+            CUR_HYSTERESIS["count"] = CUR_HYSTERESIS["count"] + 1
+    elif any(v['cpu'] < MIN_CPU_LIMIT for v in AUTO_CREATED_NODES.values()):
+        if CUR_HYSTERESIS["sample_type"] != "scaleDown":
+            CUR_HYSTERESIS["sample_type"] = "scaleDown"
+            CUR_HYSTERESIS["count"] = 1
+        elif CUR_HYSTERESIS["count"] == MAX_HYSTERESIS_COUNT:
+            if scaleDownNodes():
+                CUR_HYSTERESIS["count"] = 0
+        else:
+            CUR_HYSTERESIS["count"] = CUR_HYSTERESIS["count"] + 1
+    time.sleep(POLLING_CLUSTER_PERIOD)
